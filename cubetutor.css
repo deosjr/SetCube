@@ -1,0 +1,142 @@
+body {
+	margin: 0; 	padding: 0;
+	font: normal .72em/1.5em 'Trebuchet MS', sans-serif;
+	color: #333;
+	text-align: center;	
+	height: 100%;	
+}
+
+/* links */
+a { color: #72A545; }
+a:hover { color: #006699; }
+
+p {
+	margin: 10px 15px;
+}
+
+.card {
+	float:left;
+	background-image:url('cardback.jpg');
+}
+
+a.cardPreview {
+	text-decoration:none;
+}
+
+img.cardPreview {
+	display:block;
+}
+
+div.viewCubeColumn {
+	margin:1px;
+	width:140px;
+	float:left;
+}
+
+p.columnTitle {
+	font-weight: bold;
+	margin: 10px 0px;
+	text-align:center;
+	clear:both;
+}
+
+p.bigColumnTitle {
+	font-size: 1.3em;
+	font-weight: bold;
+	margin: 10px 0px;
+	text-align:center;
+	clear:both;
+}
+
+
+div.whiteColumn {
+	background-color:#fffcf3;
+	border: 2px solid #B29F64;
+}
+
+div.whiteColumn p.columnTitle, div.whiteColumn p.bigColumnTitle {
+	color: #B29F64;
+}
+
+div.blueColumn {
+	background-color:#ebf5ff;
+	border: 2px solid #004D99;
+}
+
+div.blueColumn p.columnTitle, div.blueColumn p.bigColumnTitle {
+	color: #004D99;
+}
+
+div.blackColumn {
+	background-color:#e3e3e3;
+	border: 2px solid black;
+}
+
+div.blackColumn p.columnTitle, div.blackColumn p.bigColumnTitle {
+	color: black;
+}
+
+div.redColumn {
+	background-color:#ffe7e7;
+	border: 2px solid #990000;
+}
+
+div.redColumn p.columnTitle, div.redColumn p.bigColumnTitle {
+	color: #990000;
+}
+
+div.greenColumn {
+	background-color:#f2ffe6;
+	border: 2px solid #4D9900;
+}
+
+div.greenColumn p.columnTitle, div.greenColumn p.bigColumnTitle {
+	color: #4D9900;
+}
+
+div.multicolorColumn {
+	background-color:#ffffdc;
+	border: 2px solid #999900;
+}
+
+div.multicolorColumn p.columnTitle, div.multicolorColumn p.bigColumnTitle {
+	color: #999900;
+}
+
+div.colorlessColumn {
+	background-color:#fff1e4;
+	border: 2px solid #994d00;
+}
+
+div.colorlessColumn p.columnTitle, div.colorlessColumn p.bigColumnTitle {
+	color: #994d00;
+}
+
+ p.cmcDivider {
+ 	margin-bottom:-3px;
+ }
+
+div#listContainer {
+	clear:both;
+}
+
+div.cmcColumn {
+	width: 144px;
+	float:left;
+	clear:right;
+}
+
+a.cardPreview {
+	display: block;
+    margin: 0 3px;
+    padding: 0 2px;
+    text-decoration: none;
+}
+
+div.viewCurveRow {
+	float:left;
+	display:block;
+	padding-left:10px;
+	padding-bottom:10px;
+	margin-bottom:10px;
+}
