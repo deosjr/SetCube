@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sort"
@@ -33,24 +34,104 @@ type (
 )
 
 var (
+	promos  = true
 	mRarity = rarityMap{}
+	names   = map[string]int{}
 )
 
+func printUsage() {
+	fmt.Println("usage: go run main.go -set <SETCODE> [-nopromo]")
+	fmt.Println("usage: go run main.go -file <filename> [-nopromo]")
+	os.Exit(1)
+}
+
 func main() {
-
-	if len(os.Args) != 2 {
-		fmt.Println("usage: go run main.go SETCODE(3 characters)")
-		os.Exit(1)
+	// TODO: use cmd line lib like cobra
+	if !(len(os.Args) == 3 || (len(os.Args) == 4 && os.Args[3] == "-nopromo")) {
+		printUsage()
 	}
-	setCode := os.Args[1]
+	mode := os.Args[1]
+	arg := os.Args[2]
+	if len(os.Args) > 3 && os.Args[3] == "-nopromo" {
+		promos = false
+	}
+	switch mode {
+	case "-set":
+		set(arg)
+	case "-file":
+		file(arg)
+	default:
+		printUsage()
+	}
+}
 
-	cards, err := mtg.NewQuery().Where(mtg.CardSet, setCode).All()
+// download a whole set definition and print the overview
+func set(code string) {
+	query := mtg.NewQuery().Where(mtg.CardSet, code)
+	cards, err := query.All()
 	if err != nil {
 		panic(err)
 	}
 	for _, card := range cards {
 		addToMaps(card)
 	}
+	writeHTML()
+}
+
+// do the same but instead of all the cards in a set,
+// print the overview for all the cards in the file.
+// file should be split by newline, one cardname per line
+// TODO: optional indicate rarity, overwriting actual card rarity
+// library does encoding of cardnames for us
+func file(filename string) {
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	cards := []string{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		cardname := scanner.Text()
+		if cardname == "" || strings.HasPrefix(cardname, "#") {
+			continue
+		}
+		cards = append(cards, cardname)
+		names[cardname] = 1
+	}
+	for i := 0; i < len(cards)/10; i++ {
+		normalcards := strings.Join(cards[10*i:10*(i+1)], "|")
+		query := mtg.NewQuery().Where(mtg.CardName, normalcards)
+		fmt.Println(query)
+		resp, err := query.All()
+		if err != nil {
+			panic(err)
+		}
+		for _, card := range resp {
+			// assumption: cardsets generally have three letters
+			// and promos have a P in front (i.e. SOI vs PSOI)
+			if !promos && len(card.Set) == 4 && card.Set[0] == 80 {
+				continue
+			}
+			i, ok := names[card.Name]
+			if !ok {
+				continue
+			}
+			if i == 2 {
+				continue
+			}
+			names[card.Name] = 2
+			addToMaps(card)
+		}
+	}
+	// multiple exact matches are _broken_ on the API level
+	// API is broken for exact match on some cards with special characters in them
+	// try to find card without exact match in that case
+	// so we'll have to send requests one-by-one for these cards :(
+	writeHTML()
+}
+
+func writeHTML() {
 	f, err := os.Create("out.html")
 	if err != nil {
 		panic(err)
@@ -115,15 +196,28 @@ func printColor(color string, mcmc cmcMap) string {
 	var s string
 	s += fmt.Sprintf("<div class=\"viewCubeColumn %sColumn\">\n", strings.ToLower(color))
 	keys := []int{}
+	var numColor int
 	for k := range mcmc {
 		keys = append(keys, k)
+		numColor += len(mcmc[k])
 	}
+	s += fmt.Sprintf("<p class=\"bigColumnTitle\">%s (%d)</p>", color, numColor)
 	sort.Ints(keys)
 	for _, k := range keys {
 		list := mcmc[k]
 		for _, card := range list {
-			name := strings.Replace(strings.ToLower(card.Name), " ", "%20", -1)
-			s += fmt.Sprintf("<a rel=\"nofollow\" class=\"cardPreview\" data-image=\"http://d1f83aa4yffcdn.cloudfront.net/%s/%s.jpg\">%s</a>\n", card.Set, name, card.Name)
+			switch len(card.Names) {
+			case 0:
+				name := strings.Replace(strings.ToLower(card.Name), " ", "%20", -1)
+				s += fmt.Sprintf("<a rel=\"nofollow\" class=\"cardPreview\" data-image=\"http://d1f83aa4yffcdn.cloudfront.net/%s/%s.jpg\">%s</a>\n", card.Set, name, card.Name)
+			case 2:
+				name1 := strings.Replace(strings.ToLower(card.Names[0]), " ", "%20", -1)
+				// name2 := strings.Replace(strings.ToLower(card.Names[1]), " ", "%20", -1)
+				// TODO: at least three formats: name1_flip.jpg, name1name2.jpg, name1name2_flip.jpg
+				s += fmt.Sprintf("<a rel=\"nofollow\" class=\"cardPreview\" data-image=\"http://d1f83aa4yffcdn.cloudfront.net/%s/%s_flip.jpg\">%s</a>\n", card.Set, name1, card.Name)
+			default:
+				fmt.Println("ERR: card with weird number of names: ", card.Names)
+			}
 		}
 		s += "<p class=\"cmcDivider\"></p>\n"
 	}
