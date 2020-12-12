@@ -33,11 +33,26 @@ type (
 	cmcMap    map[int][]*mtg.Card
 )
 
+type cardstate uint8
+
+const (
+	notyetseen cardstate = iota
+	inthelist
+	seen
+)
+
 var (
 	promos  = true
 	mRarity = rarityMap{}
-	names   = map[string]int{}
+	names   = map[string]cardstate{}
+	// overrides
+	rarities = map[string]string{}
 )
+
+// formatting in -file:
+// file should be split by newline, one cardname per line
+// # is a comment
+// [Mythic] Card Name sets Card Name to Mythic even when its a common
 
 func printUsage() {
 	fmt.Println("usage: go run main.go -set <SETCODE> [-nopromo]")
@@ -73,15 +88,13 @@ func set(code string) {
 		panic(err)
 	}
 	for _, card := range cards {
-		addToMaps(card)
+		addToMaps(card, getRarity(card))
 	}
 	writeHTML()
 }
 
 // do the same but instead of all the cards in a set,
 // print the overview for all the cards in the file.
-// file should be split by newline, one cardname per line
-// TODO: optional indicate rarity, overwriting actual card rarity
 // library does encoding of cardnames for us
 func file(filename string) {
 	f, err := os.Open(filename)
@@ -96,11 +109,21 @@ func file(filename string) {
 		if cardname == "" || strings.HasPrefix(cardname, "#") {
 			continue
 		}
+		if strings.HasPrefix(cardname, "[") {
+			split := strings.Split(cardname[1:], "] ")
+			rarityOverride := split[0]
+			cardname = split[1]
+			rarities[cardname] = rarityOverride
+		}
 		cards = append(cards, cardname)
-		names[cardname] = 1
+		names[cardname] = inthelist
 	}
-	for i := 0; i < len(cards)/10; i++ {
-		normalcards := strings.Join(cards[10*i:10*(i+1)], "|")
+	for i := 0; i <= len(cards)/10; i++ {
+		end := 10 * (i + 1)
+		if end > len(cards) {
+			end = len(cards)
+		}
+		normalcards := strings.Join(cards[10*i:end], "|")
 		query := mtg.NewQuery().Where(mtg.CardName, normalcards)
 		fmt.Println(query)
 		resp, err := query.All()
@@ -110,18 +133,21 @@ func file(filename string) {
 		for _, card := range resp {
 			// assumption: cardsets generally have three letters
 			// and promos have a P in front (i.e. SOI vs PSOI)
-			if !promos && len(card.Set) == 4 && card.Set[0] == 80 {
+			if !promos && len(card.Set) == 4 { //&& card.Set[0] == 80 {
 				continue
 			}
-			i, ok := names[card.Name]
-			if !ok {
+			if !promos && card.Set == "PRM" {
 				continue
 			}
-			if i == 2 {
+			if names[card.Name] != inthelist {
 				continue
 			}
-			names[card.Name] = 2
-			addToMaps(card)
+			names[card.Name] = seen
+			rarity := getRarity(card)
+			if value, ok := rarities[card.Name]; ok {
+				rarity = value
+			}
+			addToMaps(card, rarity)
 		}
 	}
 	// multiple exact matches are _broken_ on the API level
@@ -140,13 +166,12 @@ func writeHTML() {
 	f.WriteString(fmt.Sprintf(template, printMap(mRarity)))
 }
 
-func addToMaps(card *mtg.Card) {
-	r := getRarity(card)
+func addToMaps(card *mtg.Card, rarity string) {
 	c := getColor(card)
-	mc, ok := mRarity[r]
+	mc, ok := mRarity[rarity]
 	if !ok {
 		mc = colorMap{}
-		mRarity[r] = mc
+		mRarity[rarity] = mc
 	}
 	mcmc, ok := mc[c]
 	if !ok {
@@ -171,14 +196,15 @@ func getColor(card *mtg.Card) string {
 }
 
 func getRarity(card *mtg.Card) string {
-	if card.Rarity == "Common" || card.Rarity == "Uncommon" {
-		return card.Rarity
+	r := card.Rarity
+	if r == "Common" || r == "Uncommon" || r == "Rare" || r == "Mythic" {
+		return r
 	}
-	return "Rare"
+	return "Other"
 }
 
 func printMap(mr rarityMap) string {
-	return printRarity(mr["Common"]) + printRarity(mr["Uncommon"]) + printRarity(mr["Rare"])
+	return printRarity(mr["Common"]) + printRarity(mr["Uncommon"]) + printRarity(mr["Rare"]) + printRarity(mr["Mythic"]) + printRarity(mr["Other"])
 }
 
 func printRarity(cmap colorMap) string {
