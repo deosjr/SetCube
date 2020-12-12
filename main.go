@@ -49,6 +49,18 @@ var (
 	rarities = map[string]string{}
 )
 
+// promo sets: curl 'https://api.magicthegathering.io/v1/sets?type=promo|spellbook|from_the_vault|box' | jq '.sets | .[] | .code'
+var promosets = []string{"ATH", "BRB", "BTD", "CST", "DKM", "DPA", "E02", "G17", "G18", "GK1", "GK2", "GN2", "GNT", "HA1", "HA2", "HA3", "MD1", "MGB", "PAST", "PHUK", "PS11", "PSAL", "PSDG", "RQS", "SLD", "SLU", "TD0", "F15", "CC1", "F16", "DRB", "F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F17", "F18", "FNM", "G00", "G01", "G02", "G03", "G04", "G05", "G06", "G07", "G08", "G09", "G10", "G11", "G99", "J12", "J13", "J14", "J15", "J16", "J17", "J18", "J19", "J20", "JGP", "PM13", "MPR", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P10E", "P11", "P15A", "P2HG", "PAER", "PAKH", "PAL00", "PAL01", "PAL02", "PAL03", "PAL04", "PAL05", "PAL06", "PAL99", "PALP", "PANA", "PARL", "PAVR", "PBBD", "PBFZ", "PBNG", "PBOK", "PCMP", "PDGM", "PDKA", "PDOM", "PDP10", "PDP12", "PDP13", "PDP14", "PDP15", "PDRC", "PDTK", "PDTP", "PELD", "PELP", "PEMN", "PF19", "PF20", "PFRF", "PG07", "PG08", "PGPX", "PGRN", "PGRU", "PGTC", "PGTW", "PHEL", "PHJ", "PHOP", "PHOU", "PHPR", "PI13", "PI14", "PIDW", "PIKO", "PISD", "PJAS", "PJJT", "PJOU", "PJSE", "PKLD", "PKTK", "PLGM", "PLGS", "PLNY", "PLPA", "PM10", "PM11", "PM12", "PM14", "PM15", "PM19", "PM20", "PM21", "PMBS", "PMEI", "PMH1", "PMPS", "PMPS06", "PMPS07", "PMPS08", "PMPS09", "PMPS10", "PMPS11", "PNAT", "PNPH", "POGW", "PORI", "PPP1", "PPRE", "PPRO", "PR2", "PRED", "PREL", "PRES", "PRIX", "PRM", "PRNA", "PROE", "PRTR", "PRW2", "PRWK", "PS14", "PS15", "PS16", "PS17", "PS18", "PS19", "PSDC", "PSOI", "PSOM", "PSS1", "PSS2", "PSS3", "PSUM", "PSUS", "PTHB", "PTHS", "PTKDF", "PURL", "PUST", "PWAR", "PWCQ", "PWOR", "PWOS", "PWP09", "PWP10", "PWP11", "PWP12", "PWPN", "PWWK", "PXLN", "PXTC", "PZEN", "PZNR", "SS1", "SS2", "SS3", "THP3", "UGIN", "V09", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17"}
+
+func isPromoset(cardset string) bool {
+	for _, set := range promosets {
+		if set == cardset {
+			return true
+		}
+	}
+	return false
+}
+
 // formatting in -file:
 // file should be split by newline, one cardname per line
 // # is a comment
@@ -131,16 +143,15 @@ func file(filename string) {
 			panic(err)
 		}
 		for _, card := range resp {
-			// assumption: cardsets generally have three letters
-			// and promos have a P in front (i.e. SOI vs PSOI)
-			if !promos && len(card.Set) == 4 { //&& card.Set[0] == 80 {
-				continue
-			}
-			if !promos && card.Set == "PRM" {
+			if !promos && isPromoset(string(card.Set)) {
 				continue
 			}
 			if names[card.Name] != inthelist {
 				continue
+			}
+			// naming inconsistency ?
+			if card.Set == "NEM" {
+				card.Set = "NMS"
 			}
 			names[card.Name] = seen
 			rarity := getRarity(card)
